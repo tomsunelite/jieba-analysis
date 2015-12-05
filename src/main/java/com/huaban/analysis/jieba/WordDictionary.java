@@ -134,6 +134,49 @@ public class WordDictionary {
         loadUserDict(userDict, StandardCharsets.UTF_8);
     }
 
+    /**
+     *
+     * @param fileName, should start with "/"
+     */
+    public void loadUserDictFromResource(String fileName) {
+        InputStream is = this.getClass().getResourceAsStream(fileName);
+        try {
+            BufferedReader br = new BufferedReader(new InputStreamReader(is, Charset.forName("UTF-8")));
+            long s = System.currentTimeMillis();
+            while (br.ready()) {
+                String line = br.readLine();
+                String[] tokens = line.split("[\t ]+");
+
+                if (tokens.length < 2)
+                    continue;
+
+                String word = tokens[0];
+                double freq = Double.valueOf(tokens[1]);
+                total += freq;
+                word = addWord(word);
+                freqs.put(word, freq);
+            }
+            // normalize
+            for (Entry<String, Double> entry : freqs.entrySet()) {
+                entry.setValue((Math.log(entry.getValue() / total)));
+                minFreq = Math.min(entry.getValue(), minFreq);
+            }
+            System.out.println(String.format(Locale.getDefault(), "main dict load finished, time elapsed %d ms",
+                    System.currentTimeMillis() - s));
+        }
+        catch (IOException e) {
+            System.err.println(String.format(Locale.getDefault(), "%s load failure!", MAIN_DICT));
+        }
+        finally {
+            try {
+                if (null != is)
+                    is.close();
+            }
+            catch (IOException e) {
+                System.err.println(String.format(Locale.getDefault(), "%s close failure!", MAIN_DICT));
+            }
+        }
+    }
 
     public void loadUserDict(Path userDict, Charset charset) {                
         try {
