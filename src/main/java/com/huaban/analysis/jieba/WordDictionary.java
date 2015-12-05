@@ -21,6 +21,7 @@ public class WordDictionary {
     private static WordDictionary singleton;
     private static final String MAIN_DICT = "/dict.txt";
     private static String USER_DICT_SUFFIX = ".dict";
+    private static final String DEFAULT_DICT_RESOURCE_PATH= "user_dicts";
 
     public final Map<String, Double> freqs = new HashMap<String, Double>();
     public final Set<String> loadedPath = new HashSet<String>();
@@ -31,6 +32,7 @@ public class WordDictionary {
 
     private WordDictionary() {
         this.loadDict();
+        this.loadUserDicts(DEFAULT_DICT_RESOURCE_PATH);
     }
 
 
@@ -75,7 +77,17 @@ public class WordDictionary {
         }
     }
 
-
+    private void loadUserDicts(String resourceDir) {
+        _dict = new DictSegment((char) 0);
+        try {
+            String[] dictFiles = Utils.getResourceListing(WordDictionary.class, resourceDir);
+            for (String file : dictFiles) {
+                loadUserDictFromResource("/"+resourceDir+"/"+file);
+            }
+        } catch (Exception ex) {
+            System.err.println(String.format(Locale.getDefault(), "%s load dict failure!", ex));
+        }
+    }
     public void loadDict() {
         _dict = new DictSegment((char) 0);
         InputStream is = this.getClass().getResourceAsStream(MAIN_DICT);
@@ -143,6 +155,7 @@ public class WordDictionary {
         try {
             BufferedReader br = new BufferedReader(new InputStreamReader(is, Charset.forName("UTF-8")));
             long s = System.currentTimeMillis();
+            int count = 0;
             while (br.ready()) {
                 String line = br.readLine();
                 String[] tokens = line.split("[\t ]+");
@@ -152,20 +165,14 @@ public class WordDictionary {
 
                 String word = tokens[0];
                 double freq = Double.valueOf(tokens[1]);
-                total += freq;
                 word = addWord(word);
-                freqs.put(word, freq);
+                freqs.put(word, Math.log(freq / total));
+                count++;
             }
-            // normalize
-            for (Entry<String, Double> entry : freqs.entrySet()) {
-                entry.setValue((Math.log(entry.getValue() / total)));
-                minFreq = Math.min(entry.getValue(), minFreq);
-            }
-            System.out.println(String.format(Locale.getDefault(), "main dict load finished, time elapsed %d ms",
-                    System.currentTimeMillis() - s));
+            System.out.println(String.format(Locale.getDefault(), "user dict %s load finished, tot words:%d, time elapsed:%dms", fileName, count, System.currentTimeMillis() - s));
         }
         catch (IOException e) {
-            System.err.println(String.format(Locale.getDefault(), "%s load failure!", MAIN_DICT));
+            System.err.println(String.format(Locale.getDefault(), "%s load failure!", fileName));
         }
         finally {
             try {
@@ -173,7 +180,7 @@ public class WordDictionary {
                     is.close();
             }
             catch (IOException e) {
-                System.err.println(String.format(Locale.getDefault(), "%s close failure!", MAIN_DICT));
+                System.err.println(String.format(Locale.getDefault(), "%s close failure!", fileName));
             }
         }
     }
